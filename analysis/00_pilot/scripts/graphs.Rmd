@@ -1,0 +1,355 @@
+---
+title: "Similarity Judgment Task Graphs"
+author: "morgan moyer"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r setup, include=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+library(multcomp) # not available for this version of R
+library(stringr)
+library(textstem)
+library(sciplot)
+library(tidyverse)
+theme_set(theme_bw())
+cbPalette <- c("#56B4E9", "#D55E00", "#009E73","#999999", "#E69F00")
+this.dir <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(this.dir)
+source("../../helpers.R")
+
+d <- read.csv("../data/processed.csv")
+
+
+d["WordPair"] <- paste(d$Word1,d$Word2,sep="-")
+
+```
+
+
+## Summary Stats
+```{r}
+agr <- d %>% 
+  group_by(FeatureMatch) %>% 
+  summarize(MeanPropSimilar = mean(Response),
+            SD = sd(Response))
+print(agr)
+```
+
+```{r}
+agr <- d %>% 
+  filter(!FeatureMatch == "SelfPair")
+
+ggplot(agr, aes(Response,fill=FeatureMatch)) +
+  geom_density(alpha = .5)
+  # facet_wrap(~FeatureMatch)
+
+ggplot(agr, aes(Response,fill=FeatureMatch)) +
+  geom_density(alpha = .5) +
+  facet_wrap(~FeatureMatch)
+```
+
+```{r}
+agr <- d %>% 
+  group_by(FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+# View(agr)
+
+dodge = position_dodge(.9)
+ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
+  geom_bar(position=dodge,stat="identity") + 
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
+  theme(axis.text.x = element_text(angle = 10, hjust = 1))
+
+
+```
+
+```{r}
+agr <- d %>% 
+  group_by(WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+# Set dodge width to match violin grouping
+dodge_width <- 0.9
+
+ggplot(agr, aes(x = reorder(FeatureMatch,MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) + 
+  geom_violin(trim = FALSE, alpha = 0.4, position = position_dodge(width = dodge_width)) +
+
+  # Add mean point with matching dodge
+  stat_summary(fun = mean,
+               geom = "point",
+               shape = 23,
+               size = 3,
+               position = position_dodge(width = dodge_width)) +
+  
+  stat_summary(fun = median,
+                geom = "crossbar",
+                width = 0.3, 
+                linewidth = 0.2,
+                position = position_dodge(width = dodge_width)) +
+  
+  labs(y = "MeanPropSimilar", x = "Experiment") +
+  theme(text = element_text(family = "Helvetica")) +
+  # theme(axis.text.x = element_text(angle = 10, hjust = 1))
+  theme(
+    legend.position = "top",
+    legend.direction = "horizontal"
+    # axis.text.x = element_text(angle = 10, hjust = .5, margin = margin(t = 10)),
+    # plot.margin = margin(10, 20, 20, 10)  # top, right, bottom, left (in pts)
+
+  ) 
+```
+
+# by-item
+```{r,fig.width=10, fig.height=8}
+ggplot(d, aes(x = reorder(WordPair,Response), y = Response, fill = FeatureMatch)) +
+  geom_violin(trim = FALSE, position = position_dodge(width = dodge_width), alpha = 0.4) +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, 
+               position = position_dodge(width = dodge_width)) +
+  stat_summary(fun = median, geom = "crossbar", width = 0.3, linewidth = 0.2, 
+               position = position_dodge(width = dodge_width)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(y = "Response", x = "WordPair")
+
+```
+
+```{r,fig.width=10, fig.height=8}
+
+agr <- d %>% 
+  group_by(WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+
+
+ggplot(agr, aes(x = reorder(WordPair, MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) + 
+  geom_col(position = position_dodge(width = dodge_width), width = 0.7, alpha = 0.8) +
+  geom_errorbar(aes(ymin = CILow, ymax = CIHigh), 
+                width = 0.2, position = position_dodge(width = dodge_width)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(y = "Mean Prop Similar", x = "WordPair")
+
+```
+
+```{r,fig.width=10, fig.height=8}
+agr <- d %>%
+  group_by(ID.Ibex, WordPair, FeatureMatch) %>%
+  summarise(
+    MeanPropSimilar = mean(Response),
+    SE = sd(Response) / sqrt(n()),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    CILow = MeanPropSimilar - 1.96 * SE,
+    CIHigh = MeanPropSimilar + 1.96 * SE
+  )
+
+ggplot(agr, aes(x = reorder(WordPair,MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) +
+  geom_violin(trim = FALSE, position = position_dodge(width = dodge_width), alpha = 0.4) +
+  stat_summary(fun = mean, geom = "point", shape = 23, size = 3, 
+               position = position_dodge(width = dodge_width)) +
+  stat_summary(fun = median, geom = "crossbar", width = 0.3, linewidth = 0.2, 
+               position = position_dodge(width = dodge_width)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(y = "MeanPropSimilar", x = "WordPair")
+
+```
+
+
+
+# by-participant
+
+```{r,fig.width=8, fig.height=8}
+agr <- d %>% 
+  group_by(ID.Ibex,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+# View(agr)
+
+dodge = position_dodge(.9)
+ggplot(data=agr, aes(x=reorder(ID.Ibex,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
+  geom_bar(position=dodge,stat="identity") + 
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
+  facet_wrap(~FeatureMatch,ncol=1) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```
+
+```{r,fig.width=12, fig.height=12}
+agr <- d %>% 
+  group_by(ID.Ibex,WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+# View(agr)
+
+dodge = position_dodge(.9)
+ggplot(data=agr, aes(x=reorder(ID.Ibex,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
+  geom_bar(position=dodge,stat="identity") + 
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
+  facet_wrap(~WordPair,ncol=5) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+
+```
+
+```{r,fig.width=8, fig.height=12}
+agr <- d %>% 
+  group_by(ID.Ibex,WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+
+# Step 1: Filter for FeatureMatch level to use for ordering
+order_df <- agr %>%
+  filter(FeatureMatch == "SelfPair") %>%  # or "ValenceMatchingOnly", etc.
+  group_by(WordPair) %>%
+  summarise(Avg = mean(MeanPropSimilar)) %>%
+  arrange(desc(Avg))  # or arrange(Avg) for ascending
+
+# Step 2: Set factor levels of WordPair
+agr$WordPair <- factor(agr$WordPair, levels = order_df$WordPair)
+
+# Step 3: Plot
+ggplot(data = agr, aes(x = reorder(ID.Ibex, MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) +
+  geom_bar(position = dodge, stat = "identity") + 
+  geom_errorbar(aes(ymin = YMin, ymax = YMax), width = 0.25, position = dodge) +
+  facet_wrap(~WordPair, ncol = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+```{r,fig.width=8, fig.height=12}
+agr <- d %>% 
+  group_by(ID.Ibex,WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+
+# Step 1: Filter for FeatureMatch level to use for ordering
+order_df <- agr %>%
+  filter(FeatureMatch == "MaxMismatch") %>%  # or "ValenceMatchingOnly", etc.
+  group_by(WordPair) %>%
+  summarise(Avg = mean(MeanPropSimilar)) %>%
+  arrange(desc(Avg))  # or arrange(Avg) for ascending
+
+# Step 2: Set factor levels of WordPair
+agr$WordPair <- factor(agr$WordPair, levels = order_df$WordPair)
+
+# Step 3: Plot
+ggplot(data = agr, aes(x = reorder(ID.Ibex, MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) +
+  geom_bar(position = dodge, stat = "identity") + 
+  geom_errorbar(aes(ymin = YMin, ymax = YMax), width = 0.25, position = dodge) +
+  facet_wrap(~WordPair, ncol = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+```{r,fig.width=8, fig.height=12}
+agr <- d %>% 
+  group_by(ID.Ibex,WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+
+# Step 1: Filter for FeatureMatch level to use for ordering
+order_df <- agr %>%
+  filter(FeatureMatch == "MaxMatch") %>%  # or "ValenceMatchingOnly", etc.
+  group_by(WordPair) %>%
+  summarise(Avg = mean(MeanPropSimilar)) %>%
+  arrange(desc(Avg))  # or arrange(Avg) for ascending
+
+# Step 2: Set factor levels of WordPair
+agr$WordPair <- factor(agr$WordPair, levels = order_df$WordPair)
+
+# Step 3: Plot
+ggplot(data = agr, aes(x = reorder(ID.Ibex, MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) +
+  geom_bar(position = dodge, stat = "identity") + 
+  geom_errorbar(aes(ymin = YMin, ymax = YMax), width = 0.25, position = dodge) +
+  facet_wrap(~WordPair, ncol = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+```{r,fig.width=8, fig.height=12}
+agr <- d %>% 
+  group_by(ID.Ibex,WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+
+# Step 1: Filter for FeatureMatch level to use for ordering
+order_df <- agr %>%
+  filter(FeatureMatch == "ConceptualMatchingOnly") %>%  # or "ValenceMatchingOnly", etc.
+  group_by(WordPair) %>%
+  summarise(Avg = mean(MeanPropSimilar)) %>%
+  arrange(desc(Avg))  # or arrange(Avg) for ascending
+
+# Step 2: Set factor levels of WordPair
+agr$WordPair <- factor(agr$WordPair, levels = order_df$WordPair)
+
+# Step 3: Plot
+ggplot(data = agr, aes(x = reorder(ID.Ibex, MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) +
+  geom_bar(position = dodge, stat = "identity") + 
+  geom_errorbar(aes(ymin = YMin, ymax = YMax), width = 0.25, position = dodge) +
+  facet_wrap(~WordPair, ncol = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+```{r,fig.width=8, fig.height=12}
+agr <- d %>% 
+  group_by(ID.Ibex,WordPair,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+
+# Step 1: Filter for FeatureMatch level to use for ordering
+order_df <- agr %>%
+  filter(FeatureMatch == "ValenceMatchingOnly") %>%  # or "ValenceMatchingOnly", etc.
+  group_by(WordPair) %>%
+  summarise(Avg = mean(MeanPropSimilar)) %>%
+  arrange(desc(Avg))  # or arrange(Avg) for ascending
+
+# Step 2: Set factor levels of WordPair
+agr$WordPair <- factor(agr$WordPair, levels = order_df$WordPair)
+
+# Step 3: Plot
+ggplot(data = agr, aes(x = reorder(ID.Ibex, MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) +
+  geom_bar(position = dodge, stat = "identity") + 
+  geom_errorbar(aes(ymin = YMin, ymax = YMax), width = 0.25, position = dodge) +
+  facet_wrap(~WordPair, ncol = 2) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```

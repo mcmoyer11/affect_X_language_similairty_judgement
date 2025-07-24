@@ -1,0 +1,11 @@
+Word1,Word2,FeatureCombo1,FeatureCombo2,FeatureMatch,Valence,Conceptual
+compassion,freedom,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+compassion,gratitude,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+compassion,inspiration,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+compassion,kindness,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+freedom,gratitude,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+freedom,inspiration,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+freedom,kindness,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+gratitude,inspiration,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+gratitude,kindness,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch
+inspiration,kindness,noun-positive,noun-positive,MaxMatch,PositiveMatch,NounMatch

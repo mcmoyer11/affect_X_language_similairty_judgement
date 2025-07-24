@@ -1,0 +1,11 @@
+Word1,Word2,FeatureCombo1,FeatureCombo2,FeatureMatch,Valence,Conceptual
+admire,cherish,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+admire,enlighten,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+admire,fulfill,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+admire,imagine,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+cherish,enlighten,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+cherish,fulfill,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+cherish,imagine,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+enlighten,fulfill,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+enlighten,imagine,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch
+fulfill,imagine,verb-positive,verb-positive,MaxMatch,PositiveMatch,VerbMatch

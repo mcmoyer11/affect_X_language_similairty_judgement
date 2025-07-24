@@ -1,0 +1,353 @@
+---
+title: "power analysis"
+author: "morgan moyer"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+library(multcomp) # not available for this version of R
+library(stringr)
+library(textstem)
+library(tidyverse)
+library(kableExtra)
+library(ggrepel)
+library(lme4)
+library(simr)
+library(tidyverse)
+library(afex)     # for ANOVA with repeated measures
+library(emmeans)  # for post-hoc comparisons
+library(effectsize)
+library(pwr)
+
+
+theme_set(theme_bw())
+
+cbPalette <- c("#56B4E9", "#D55E00", "#009E73","#999999", "#E69F00")
+this.dir <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(this.dir)
+source("../../../helpers.R")
+
+# v1 <- read_csv("../../01_verbs/exploratory_all_data/data/processed.csv")
+# v1["Category"] <- "Verbs"
+
+d <- read_csv("../../02_n2/data/processed.csv")
+names(d)
+```
+
+# Anova
+
+
+
+```{r}
+# === 1. Read the pilot data ===
+
+# Replace with the actual path to your CSV file
+pilot_data <- d %>% 
+  filter(!FeatureMatch %in% c("SelfPair"))
+
+# Check column names
+str(pilot_data)
+
+# === 2. Summarize the data: means and SDs per FeatureMatch ===
+
+# Compute group means
+group_means <- tapply(pilot_data$Response, pilot_data$FeatureMatch, mean)
+
+# Compute pooled within-group SD
+group_sds <- tapply(pilot_data$Response, pilot_data$FeatureMatch, sd)
+
+# Compute pooled SD (assumes equal group sizes or similar SDs)
+pooled_sd <- sqrt(mean(group_sds^2))  # a simple approximation
+
+# === 3. Compute effect size ===
+
+k <- length(group_means)  # number of levels
+grand_mean <- mean(group_means)
+
+# Between-group SS
+ss_between <- sum((group_means - grand_mean)^2)
+
+# MS between
+ms_between <- ss_between / (k - 1)
+
+# MS within (approximate from pooled SD)
+ms_within <- pooled_sd^2
+
+# Eta squared
+eta_squared <- ss_between / (ss_between + ms_within * (k - 1))
+
+# Cohen's f
+cohen_f <- sqrt(eta_squared / (1 - eta_squared))
+
+# Output effect size
+cat("Group means:\n")
+print(round(group_means, 2))
+cat("\nPooled within-group SD:", round(pooled_sd, 2), "\n")
+cat("Eta squared (η²):", round(eta_squared, 3), "\n")
+cat("Cohen's f:", round(cohen_f, 3), "\n\n")
+
+# === 4. Power analysis ===
+
+# Calculate required total sample size for 80% power
+power_result <- pwr.anova.test(
+  k = k,
+  f = cohen_f,
+  sig.level = 0.05,
+  power = 0.80
+)
+
+cat("Required total sample size for 80% power:", ceiling(power_result$n), "\n")
+cat("≈", ceiling(power_result$n / k), "participants per FeatureMatch (if between-subjects)\n")
+
+```
+
+```{r}
+# === 3. Generate power curve ===
+
+# Define sample sizes to test (per group)
+n_per_group <- seq(5, 100, by = 1)
+total_n <- n_per_group * k
+
+# Compute power for each sample size
+power_vals <- sapply(n_per_group, function(n) {
+  pwr.anova.test(k = k, f = cohen_f, n = n, sig.level = 0.05)$power
+})
+
+# Create dataframe for plotting
+power_df <- data.frame(
+  Total_N = total_n,
+  Power = power_vals
+)
+
+# Plot power curve (updated for ggplot2 >= 3.4.0)
+ggplot(power_df, aes(x = Total_N, y = Power)) +
+  geom_line(linewidth = 1.2, color = "steelblue") +
+  geom_hline(yintercept = 0.80, linetype = "dashed", color = "red") +
+  labs(
+    title = "Power Curve for One-Way ANOVA",
+    x = "Total Sample Size",
+    y = "Statistical Power"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+
+```{r}
+# Repeated-measures ANOVA
+anova_rm <- aov_car(Response ~ FeatureMatch + Error(ID.Ibex/FeatureMatch), data = pilot_data)
+summary(anova_rm)
+
+
+# Estimated marginal means and pairwise comparisons
+emmeans_result <- emmeans(anova_rm, ~ FeatureMatch)
+pairs(emmeans_result)
+
+
+eta_squared(anova_rm, partial = TRUE)
+
+# Convert η² = 0.29 to Cohen's f, then d for paired t
+f <- sqrt(0.29 / (1 - 0.29))     # ≈ 0.64
+d <- f * sqrt(2)                 # for two FeatureMatchs (d ≈ 0.91)
+
+# Power for paired t-test
+pwr.t.test(d = d, power = 0.80, sig.level = 0.05, type = "paired", alternative = "two.sided")
+
+pwr.t.test(d = 0.61, power = 0.80, sig.level = 0.05, type = "paired", alternative = "two.sided")
+
+
+```
+
+```{r}
+d_vals <- seq(10, 40, by = 1)
+power_vals <- sapply(d_vals, function(n) {
+  pwr.t.test(d = 0.61, n = n, sig.level = 0.05, type = "paired")$power
+})
+
+plot(d_vals, power_vals, type = "b", pch = 19,
+     xlab = "Sample Size (ID.Ibexs)", ylab = "Power",
+     main = "Power Curve for Paired t-test (d = 0.61)")
+abline(h = 0.8, col = "red", lty = 2)
+
+```
+
+
+
+# Lmer
+
+```{r}
+pilot_data$FeatureMatch <- factor(pilot_data$FeatureMatch)
+
+# Fit to pilot data (example model)
+pilot_model <- lmer(Response ~ FeatureMatch + (1|WordPair) + (1+FeatureMatch|ID.Ibex), data = pilot_data)
+summary(model)
+
+
+fixef_vals <- fixef(pilot_model)         # fixed effects (intercept + FeatureMatch contrasts)
+varcomps <- as.data.frame(VarCorr(pilot_model))
+resid_sd <- sigma(pilot_model)           # residual SD
+
+print(fixef_vals)
+print(varcomps)
+print(resid_sd)
+
+
+# Extend the number of subjects
+# model_ext <- extend(model, along = "ID.Ibex", n = 100)  # try 40 subjects, or as needed
+
+# Power simulation (e.g. for detecting effect of FeatureMatch)
+# result <- powerSim(model, nsim = 100)
+summary(result)
+#   successes trials mean     lower     upper
+# 1        50    100  0.5 0.3983211 0.6016789
+
+# Power curve across a range of subject counts
+# pc <- powerCurve(model, fixed("FeatureMatch"), along = "ID.Ibex", nsim = 100)
+plot(pc)
+summary(pc)
+# pc <- powerCurve(model, fixed("FeatureMatch"), along = "ID.Ibex", nsim = 10, progress = FALSE)
+
+
+
+```
+
+```{r}
+pilot_data$FeatureMatch <- factor(pilot_data$FeatureMatch)
+
+simulate_power_lmer <- function(
+  pilot_model,
+  pilot_data,
+  subject_col = "Subject",
+  n_subjects = NULL,
+  n_trials_per_condition = 5,
+  n_simulations = 500,
+  alpha = 0.05
+) {
+
+  
+  pilot_data <- pilot_data %>%
+    mutate(Subject = factor(.data[[subject_col]]))
+  
+  cond_levels <- levels(pilot_data$FeatureMatch)
+  pilot_data$FeatureMatch <- factor(pilot_data$FeatureMatch, levels = cond_levels)
+  
+  n_conditions <- length(cond_levels)
+  
+  pilot_subjects <- unique(pilot_data$Subject)
+  n_pilot_subjects <- length(pilot_subjects)
+  
+  if (is.null(n_subjects)) {
+    n_subjects <- n_pilot_subjects
+  }
+  
+  fixef_vals <- fixef(pilot_model)
+  print("Fixed effects:")
+  print(fixef_vals)
+  print("FeatureMatch levels:")
+  print(cond_levels)
+  
+  vc <- as.data.frame(VarCorr(pilot_model))
+  subj_sd <- vc[vc$grp == "Subject", "sdcor"]
+  if (length(subj_sd) == 0 || is.na(subj_sd)) subj_sd <- 5
+  resid_sd <- sigma(pilot_model)
+  
+  base_data <- expand.grid(
+    Subject = factor(1:n_subjects),
+    FeatureMatch = factor(cond_levels, levels = cond_levels),
+    Trial = 1:n_trials_per_condition
+  )
+  
+  get_fixed_effect <- function(fe, cond) {
+    intercept <- fe[1]
+    
+    cond_effect <- sapply(as.character(cond), function(cn) {
+      name <- paste0("FeatureMatch", cn)
+      if (name %in% names(fe)) {
+        val <- fe[name]
+        as.numeric(val)
+      } else {
+        0
+      }
+    })
+    
+    intercept + cond_effect
+  }
+  
+  results <- replicate(n_simulations, {
+    subj_intercepts <- rnorm(n_subjects, mean = 0, sd = subj_sd)
+    
+    sim_data <- base_data %>%
+      mutate(
+        subj_int = subj_intercepts[as.numeric(Subject)],
+        fixed = get_fixed_effect(fixef_vals, FeatureMatch),
+        Response = fixed + subj_int + rnorm(n(), 0, resid_sd)
+      )
+    
+    mod_sim <- lmer(Response ~ FeatureMatch + (1 | Subject), data = sim_data)
+    
+    emm <- emmeans(mod_sim, ~ FeatureMatch)
+    contrast_res <- contrast(emm, method = list(
+      val_vs_concept = c(0, 0, 1, -1)
+    ))
+    
+    pval <- summary(contrast_res)$p.value
+    
+    as.numeric(pval < alpha)
+  })
+  
+  power_estimate <- mean(results)
+  cat("Estimated power with", n_subjects, "subjects:", round(power_estimate, 3), "\n")
+  return(power_estimate)
+}
+
+
+
+power <- simulate_power_lmer(
+  pilot_model,
+  pilot_data,
+  subject_col = "ID.Ibex",
+  n_subjects = 30,
+  n_simulations = 500
+)
+
+
+```
+
+# Power curve
+```{r}
+subject_counts <- seq(10, 100, by = 10)  # e.g., from 10 to 100 subjects, by 10
+
+power_results <- sapply(subject_counts, function(n) {
+  simulate_power_lmer(
+    pilot_model,
+    pilot_data,
+    subject_col = "ID.Ibex",
+    n_subjects = n,
+    n_simulations = 200  # fewer sims for speed; increase if you want more precision
+  )
+})
+
+power_df <- data.frame(
+  Subjects = subject_counts,
+  Power = power_results
+)
+
+
+ggplot(power_df, aes(x = Subjects, y = Power)) +
+  geom_line(color = "steelblue", linewidth = 1.2) +
+  geom_point(color = "steelblue", size = 2) +
+  geom_hline(yintercept = 0.80, linetype = "dashed", color = "red") +
+  labs(
+    title = "Power Curve for Mixed Model",
+    x = "Number of Subjects",
+    y = "Estimated Power"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+

@@ -1,0 +1,38 @@
+# Similarity Judgments OSF Pre-reg
+
+#Title
+Similarity Judgements: Valence vs. Animacy
+
+## Description
+
+The Affect First Hypothesis states that affective information is processed prior to conceptual information. Language users seem to be faster at making judgements about a word's valence than its other conceptual features, and across many conceptual domains. Is affective information also more prominent than conceptual features for determining word similarity? In this experiment we look at the conceptual feature of animacy.
+
+## Hypothesis
+
+Is word similarity judged based on the similarity between features of word valence (positive / negative) or features of conceptual meaning (animate / inanimate). The affect-first hypothesis predicts that affective information is more prominent than conceptual information for word meaning.
+
+## Dependend variable
+The dependent variable is a similarity rating judgment measured on a continuous slider from 0 (completely dissimilar) to 100 (completely similar).
+
+## Conditions
+There is one condition FeatureMatch with four conditions: MaxMismatch, MaxMatch, ValenceMatchingOnly and ConceptualMatchingOnly. The first two conditions serve as a type of controls, where responses are expected to be relatively lowest (MaxMismatch) and relatively high (MaxMatch). The other two are the test conditions where we except to find, if affective information in the form of word valence is more prominent for determining word similarity than conceptual meaning, that participants will rate word pairs in the ValenceMatchingOnly condition more similar than word pairs in the ConceptualMatchingOnly condition.
+
+## Analyses
+Analyses will used mixed-effects regression, with fullest random effects structure justified by the experimental design. The predictor of main interest is the effect of FeatureMatch on Similarity Rating. FeatureMatch is a within-subjects variable, so the random effects structure will include random slopes and intercepts for participants. 
+
+
+# Outliers and Exclusions
+There are three types of fillers used for exclusion purposes: SelfPair, NeutralAntonyms and NeutralSynonyms. The first category consists of words paired with themselves, which should always be rated as completely similar (value as close as possible to 100). These are also a kind of attention check. The second two categories are high frequency words that do not have inherent valence and are either antonyms (therefore expected to be rated maximally dissimilar close to 0) or synonyms (expected to be rated maximally similar close to 100). Participants who are under 75% accurate for these trials will be removed. Failing a trial would constitute a response which either is too far from the expected endpoint or mean, i.e., rating an antonym as not dissimilar enough or a synonym as not similar enough.
+
+
+
+## Sample Size
+We ran a power analysis using pilot data and 200 simulations  to estimate with power at 80% the number of participants expected to achieve a significant result, and this analysis suggested 50 participants.
+
+## Other
+In addition to FeatureMatch which tracks broadly whether it is the Valence or Conceptual features match, we will look at asymmetries regarding the matching of specific features, for example whether there are differences between positive or negative words.
+
+## Name
+Affect First Hypothesis: Similarity Judgements Physical/Psychological
+
+

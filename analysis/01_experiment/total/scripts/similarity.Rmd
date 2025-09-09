@@ -44,7 +44,7 @@ a2["Experiment"] <- "Ex2b: Phys-Soc (Adjs)"
 
 v2 <- read_csv("../../01_v2/data/processed.csv")
 v2["Category"] <- "Verbs"
-v2["Experiment"] <- "Ex2a: Phys-Psych (Verbs)"
+v2["Experiment"] <- "Ex2a: Phys-Psyc (Verbs)"
 
 
 n2 <- read_csv("../../02_n2/data/processed.csv")
@@ -74,7 +74,7 @@ agr <- d %>%
          YMax = MeanPropSimilar + CIHigh)
 
 
-write.csv(agr,"../data/similarity_exp.csv")  
+# write.csv(agr,"../data/similarity_exp.csv")  
 ```
 
 
@@ -103,56 +103,30 @@ dodge = position_dodge(.9)
 ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
   geom_bar(position=dodge,stat="identity") + 
   geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
-  facet_wrap(~Experiment,ncol=4) +
+  facet_wrap(
+      ~Experiment,
+      ncol=4,
+      labeller=label_wrap_gen(width=16)
+      ) +
   scale_fill_manual(values = good_colors) +
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
+        axis.ticks.x=element_blank(),
+        text = element_text(family = "Helvetica"),
+        axis.title.y = element_text(size = 16),     # y-axis title
+        axis.text.y  = element_text(size = 12),     # y-axis ticks
+        
+        strip.text= element_text(size = 10),     # facet labels
+        legend.position = "none"# legend labels
+      )
+
+ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
+# ggsave("../graphs/simex-legend.pdf", width = 7, height = 8)
 
 ```
 
 
-```{r}
-agr <- d %>% 
-  group_by(Experiment,WordPair,FeatureMatch) %>% 
-  reframe(MeanPropSimilar = mean(Response), 
-          CILow = ci.low(Response), 
-          CIHigh = ci.high(Response)) %>%
-  mutate(YMin = MeanPropSimilar - CILow, 
-         YMax = MeanPropSimilar + CIHigh)
-# Set dodge width to match violin grouping
-dodge_width <- 0.9
 
-ggplot(agr, aes(x = reorder(FeatureMatch,MeanPropSimilar), y = MeanPropSimilar, fill = FeatureMatch)) + 
-  geom_violin(trim = FALSE, alpha = 0.4, position = position_dodge(width = dodge_width)) +
-  facet_wrap(~Experiment,ncol=4) +
-  # Add mean point with matching dodge
-  stat_summary(fun = mean,
-               geom = "point",
-               shape = 23,
-               size = 3,
-               position = position_dodge(width = dodge_width)) +
-  
-  stat_summary(fun = median,
-                geom = "crossbar",
-                width = 0.3, 
-                linewidth = 0.2,
-                position = position_dodge(width = dodge_width)) +
-  
-  labs(y = "MeanPropSimilar", x = "Experiment") +
-  theme(text = element_text(family = "Helvetica")) +
-  # theme(axis.text.x = element_text(angle = 10, hjust = 1))
-  theme(
-    legend.position = "top",
-    legend.direction = "horizontal"
-    # axis.text.x = element_text(angle = 10, hjust = .5, margin = margin(t = 10)),
-    # plot.margin = margin(10, 20, 20, 10)  # top, right, bottom, left (in pts)
-
-  ) 
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank())
-```
 
 
 

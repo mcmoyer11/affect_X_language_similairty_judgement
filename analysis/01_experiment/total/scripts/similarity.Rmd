@@ -61,7 +61,14 @@ nrow(d)
 # sim <- sim[,c("WordPair","W2VSimilarity","BertSimilarity")]
 
 # d <- merge(d,sim, by="WordPair")
-nrow(d)
+# View(d)
+names(d)
+
+# 
+sub <- d[,c("WordPair","ID.Ibex","Experiment","Response","Valence","Conceptual","FeatureMatch")]
+names(sub)[names(sub) == 'ID.Ibex'] <- 'ID.true'
+sub$ExperimentType <- "Similarity"
+# write.csv(sub,"../data/similarity.csv")
 ```
 
 ```{r}
@@ -74,7 +81,7 @@ agr <- d %>%
          YMax = MeanPropSimilar + CIHigh)
 
 
-# write.csv(agr,"../data/similarity_exp.csv")  
+# write.csv(agr,"../data/similarity_agg.csv")
 ```
 
 
@@ -116,17 +123,62 @@ ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, 
         axis.title.y = element_text(size = 16),     # y-axis title
         axis.text.y  = element_text(size = 12),     # y-axis ticks
         
-        strip.text= element_text(size = 10),     # facet labels
-        legend.position = "none"# legend labels
+        strip.text= element_text(size = 10)    # facet labels
+        # legend.position = "none"# legend labels
       )
 
-ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
+# ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
 # ggsave("../graphs/simex-legend.pdf", width = 7, height = 8)
 
 ```
 
 
+```{r}
 
+agr <- d %>% 
+  group_by(Experiment,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+# View(agr)
+
+good_colors <- c(
+  "ValenceMatchingOnly" = "#00BFC4",
+  "ConceptualMatchingOnly" = "#F8766D",
+  "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
+  "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
+  "DissimilarControl" = "#999999",
+  "SimilarControl" = "#999999"
+)
+
+
+dodge = position_dodge(.9)
+ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
+  geom_bar(position=dodge,stat="identity") + 
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
+  facet_wrap(
+      ~Experiment,
+      ncol=2,
+      labeller=label_wrap_gen(width=16)
+      ) +
+  scale_fill_manual(values = good_colors) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        text = element_text(family = "Helvetica"),
+        axis.title.y = element_text(size = 16),     # y-axis title
+        axis.text.y  = element_text(size = 12),     # y-axis ticks
+        
+        strip.text= element_text(size = 10)    # facet labels
+        # legend.position = "none"# legend labels
+      )
+
+# ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
+ggsave("../graphs/simex-long-legend.jpeg", width = 7, height = 8)
+
+```
 
 
 
@@ -136,8 +188,59 @@ dcen <- d %>%
   mutate(WordPair = as.factor(WordPair),
          ID.Ibex = as.factor(ID.Ibex),
          FeatureMatch = as.factor(FeatureMatch),
+         Experiment = as.factor(Experiment),
          cResponse = as.numeric(Response)-mean(as.numeric(Response)))
 
-m <- lmer(cResponse ~ FeatureMatch + (1|WordPair) + (1+FeatureMatch|ID.Ibex), data = dcen)
+m <- lmer(cResponse ~ FeatureMatch*Experiment + (1|WordPair) + (1+FeatureMatch|ID.Ibex), data = dcen)
 summary(m)
+```
+
+
+# Looking at valence differences
+```{r}
+
+agr <- d %>% 
+  filter(FeatureMatch)
+  group_by(Experiment,FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          CILow = ci.low(Response), 
+          CIHigh = ci.high(Response)) %>%
+  mutate(YMin = MeanPropSimilar - CILow, 
+         YMax = MeanPropSimilar + CIHigh)
+# View(agr)
+
+good_colors <- c(
+  "ValenceMatchingOnly" = "#00BFC4",
+  "ConceptualMatchingOnly" = "#F8766D",
+  "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
+  "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
+  "DissimilarControl" = "#999999",
+  "SimilarControl" = "#999999"
+)
+
+
+dodge = position_dodge(.9)
+ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
+  geom_bar(position=dodge,stat="identity") + 
+  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
+  facet_wrap(
+      ~Experiment,
+      ncol=4,
+      labeller=label_wrap_gen(width=16)
+      ) +
+  scale_fill_manual(values = good_colors) +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        text = element_text(family = "Helvetica"),
+        axis.title.y = element_text(size = 16),     # y-axis title
+        axis.text.y  = element_text(size = 12),     # y-axis ticks
+        
+        strip.text= element_text(size = 10)    # facet labels
+        # legend.position = "none"# legend labels
+      )
+
+# ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
+# ggsave("../graphs/simex-legend.pdf", width = 7, height = 8)
+
 ```

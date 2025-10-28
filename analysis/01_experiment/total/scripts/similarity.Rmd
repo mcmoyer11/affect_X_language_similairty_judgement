@@ -56,38 +56,92 @@ s["Experiment"] <- "Ex4: Syntactic (N v. V)"
 
 d <- bind_rows(v,n,a,a2,v2,n2,s)
 nrow(d)
-# sim <- read.csv("../data/total_similarity.csv")
-# sim["WordPair"] <- paste(sim$Word1,sim$Word2,sep="-")
-# sim <- sim[,c("WordPair","W2VSimilarity","BertSimilarity")]
-
-# d <- merge(d,sim, by="WordPair")
-# View(d)
 names(d)
 
 # 
 sub <- d[,c("WordPair","ID.Ibex","Experiment","Response","Valence","Conceptual","FeatureMatch")]
 names(sub)[names(sub) == 'ID.Ibex'] <- 'ID.true'
 sub$ExperimentType <- "Similarity"
-# write.csv(sub,"../data/similarity.csv")
+```
+
+# Exclusions
+
+```{r}
+# Compute group-level means and SDs per Experiment × FeatureMatch
+group_stats <- d %>%
+  filter(FeatureMatch %in% c("DissimilarControl", "SimilarControl")) %>%
+  group_by(Experiment, FeatureMatch) %>%
+  summarize(
+    group_mean = mean(Response, na.rm = TRUE),
+    group_sd   = sd(Response, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Compute participant-level means
+participant_means <- d %>%
+  filter(FeatureMatch %in% c("DissimilarControl", "SimilarControl")) %>%
+  group_by(Experiment, ID.Ibex, FeatureMatch) %>%
+  summarize(
+    MeanPropSimilar = mean(Response, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Join group means/SDs to participant means
+merged <- participant_means %>%
+  left_join(group_stats, by = c("Experiment", "FeatureMatch"))
+
+# Identify participants to exclude
+to_exclude_justright <- merged %>%
+  filter(
+    (FeatureMatch == "DissimilarControl" & MeanPropSimilar > (group_mean + group_sd)) |
+    (FeatureMatch == "SimilarControl"    & MeanPropSimilar < (group_mean - group_sd))
+  ) %>%
+  pull(ID.Ibex) %>%
+  unique()
+
+# Check exclusion counts
+print(length(to_exclude_justright))
+length(unique(d$ID.Ibex))
+length(to_exclude_justright) / length(unique(d$ID.Ibex))
+# Final n = 299
+length(unique(d$ID.Ibex)) - length(to_exclude_justright)
+
+
 ```
 
 ```{r}
 agr <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright) %>% 
+  group_by(Experiment, FeatureMatch) %>% 
+  reframe(MeanPropSimilar = mean(Response), 
+          SD = sd(Response))
+
+print(agr)
+```
+
+
+```{r}
+agr <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright) %>% 
   group_by(Experiment) %>% 
   reframe(MeanPropSimilar = mean(Response), 
           CILow = ci.low(Response), 
           CIHigh = ci.high(Response)) %>%
   mutate(YMin = MeanPropSimilar - CILow, 
          YMax = MeanPropSimilar + CIHigh)
-
-
 # write.csv(agr,"../data/similarity_agg.csv")
+
+agr <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright)
+# write.csv(agr,"../data/similarity_raw.csv")
 ```
 
 
+# Wide Graph
 ```{r}
 
 agr <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright) %>% 
   group_by(Experiment,FeatureMatch) %>% 
   reframe(MeanPropSimilar = mean(Response), 
           CILow = ci.low(Response), 
@@ -101,13 +155,26 @@ good_colors <- c(
   "ConceptualMatchingOnly" = "#F8766D",
   "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
   "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
-  "DissimilarControl" = "#999999",
-  "SimilarControl" = "#999999"
+  "DissimilarControl" = "#818589",
+  "SimilarControl" = "#D3D3D3"
 )
 
+# Set desired order of legend labels
+feature_levels <- c(
+  "DissimilarControl",
+  "MaxMismatch",
+  "ConceptualMatchingOnly",
+  "ValenceMatchingOnly",
+  "MaxMatch",
+  "SimilarControl"
+)
+
+# Reorder the factor before plotting
+agr <- agr %>%
+  mutate(FeatureMatch = factor(FeatureMatch, levels = feature_levels))
 
 dodge = position_dodge(.9)
-ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
+ggplot(data=agr, aes(x=FeatureMatch,y=MeanPropSimilar, fill=FeatureMatch)) +
   geom_bar(position=dodge,stat="identity") + 
   geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
   facet_wrap(
@@ -127,15 +194,17 @@ ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, 
         # legend.position = "none"# legend labels
       )
 
-# ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
+ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
 # ggsave("../graphs/simex-legend.pdf", width = 7, height = 8)
 
 ```
 
+# Long Graph
 
 ```{r}
 
 agr <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright) %>% 
   group_by(Experiment,FeatureMatch) %>% 
   reframe(MeanPropSimilar = mean(Response), 
           CILow = ci.low(Response), 
@@ -149,13 +218,27 @@ good_colors <- c(
   "ConceptualMatchingOnly" = "#F8766D",
   "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
   "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
-  "DissimilarControl" = "#999999",
-  "SimilarControl" = "#999999"
+  "DissimilarControl" = "#818589",
+  "SimilarControl" = "#D3D3D3"
 )
+
+# Set desired order of legend labels
+feature_levels <- c(
+  "DissimilarControl",
+  "MaxMismatch",
+  "ConceptualMatchingOnly",
+  "ValenceMatchingOnly",
+  "MaxMatch",
+  "SimilarControl"
+)
+
+# Reorder the factor before plotting
+agr <- agr %>%
+  mutate(FeatureMatch = factor(FeatureMatch, levels = feature_levels))
 
 
 dodge = position_dodge(.9)
-ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
+ggplot(data=agr, aes(x=FeatureMatch,y=MeanPropSimilar, fill=FeatureMatch)) +
   geom_bar(position=dodge,stat="identity") + 
   geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
   facet_wrap(
@@ -167,7 +250,7 @@ ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, 
   theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
-        text = element_text(family = "Helvetica"),
+        # text = element_text(family = "Helvetica"),
         axis.title.y = element_text(size = 16),     # y-axis title
         axis.text.y  = element_text(size = 12),     # y-axis ticks
         
@@ -176,71 +259,87 @@ ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, 
       )
 
 # ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
-ggsave("../graphs/simex-long-legend.jpeg", width = 7, height = 8)
+ggsave("../graphs/simex-long-legend.jpeg", width = 7, height = 7)
 
 ```
 
 
+# Violin Plot
+```{r}
+
+# Reorder factor and filter participants
+d_plot <- d %>%
+  filter(!ID.Ibex %in% to_exclude_justright) %>%
+  mutate(
+    FeatureMatch = factor(FeatureMatch, levels = feature_levels)
+  )
+
+ggplot(d_plot, aes(x = FeatureMatch, y = Response, fill = FeatureMatch)) +
+  geom_violin(trim = TRUE, alpha = 0.7) +
+  stat_summary(
+    fun = mean,
+    geom = "point",
+    shape = 21,
+    size = 2,
+    color = "black",
+    fill = "white",
+    position = position_dodge(width = 0.9)
+  ) +
+  stat_summary(
+    fun.data = mean_cl_normal,
+    geom = "errorbar",
+    width = 0.2,
+    color = "black",
+    position = position_dodge(width = 0.9)
+  ) +
+  facet_wrap(
+    ~Experiment,
+    ncol = 2,
+    labeller = label_wrap_gen(width = 16)
+  ) +
+  scale_fill_manual(values = good_colors) +
+  labs(
+    y = "Mean proportion similar",
+    x = NULL
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    strip.text = element_text(size = 10),
+    axis.title.y = element_text(size = 16),
+    axis.text.y = element_text(size = 12)
+  )
+
+```
+
 
 ```{r}
-names(d)
 dcen <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright) %>% 
+  filter(FeatureMatch %in% c("ConceptualMatchingOnly","ValenceMatchingOnly")) %>% 
   mutate(WordPair = as.factor(WordPair),
          ID.Ibex = as.factor(ID.Ibex),
          FeatureMatch = as.factor(FeatureMatch),
          Experiment = as.factor(Experiment),
-         cResponse = as.numeric(Response)-mean(as.numeric(Response)))
+        cResponse = as.numeric(Response)-mean(as.numeric(Response)),
+        cFeatureMatch = as.numeric(FeatureMatch)-mean(as.numeric(FeatureMatch)))
 
-m <- lmer(cResponse ~ FeatureMatch*Experiment + (1|WordPair) + (1+FeatureMatch|ID.Ibex), data = dcen)
+m <- lmer(cResponse ~ cFeatureMatch*Experiment + (1|WordPair) + (1+cFeatureMatch|ID.Ibex), data = dcen)
 summary(m)
 ```
 
-
-# Looking at valence differences
 ```{r}
+dval <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright) %>% 
+  filter(FeatureMatch %in% c("ValenceMatchingOnly")) %>% 
+  mutate(WordPair = as.factor(WordPair),
+         ID.Ibex = as.factor(ID.Ibex),
+         FeatureMatch = as.factor(FeatureMatch),
+         Experiment = as.factor(Experiment),
+        cResponse = as.numeric(Response)-mean(as.numeric(Response)))
 
-agr <- d %>% 
-  filter(FeatureMatch)
-  group_by(Experiment,FeatureMatch) %>% 
-  reframe(MeanPropSimilar = mean(Response), 
-          CILow = ci.low(Response), 
-          CIHigh = ci.high(Response)) %>%
-  mutate(YMin = MeanPropSimilar - CILow, 
-         YMax = MeanPropSimilar + CIHigh)
-# View(agr)
-
-good_colors <- c(
-  "ValenceMatchingOnly" = "#00BFC4",
-  "ConceptualMatchingOnly" = "#F8766D",
-  "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
-  "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
-  "DissimilarControl" = "#999999",
-  "SimilarControl" = "#999999"
-)
-
-
-dodge = position_dodge(.9)
-ggplot(data=agr, aes(x=reorder(FeatureMatch,MeanPropSimilar),y=MeanPropSimilar, fill=FeatureMatch)) +
-  geom_bar(position=dodge,stat="identity") + 
-  geom_errorbar(aes(ymin=YMin,ymax=YMax),width=.25,position=position_dodge(0.9)) +
-  facet_wrap(
-      ~Experiment,
-      ncol=4,
-      labeller=label_wrap_gen(width=16)
-      ) +
-  scale_fill_manual(values = good_colors) +
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        text = element_text(family = "Helvetica"),
-        axis.title.y = element_text(size = 16),     # y-axis title
-        axis.text.y  = element_text(size = 12),     # y-axis ticks
-        
-        strip.text= element_text(size = 10)    # facet labels
-        # legend.position = "none"# legend labels
-      )
-
-# ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
-# ggsave("../graphs/simex-legend.pdf", width = 7, height = 8)
-
+m <- lmer(cResponse ~ Experiment + (1|WordPair) + (1|ID.Ibex), data = dval)
+summary(m)
 ```
+

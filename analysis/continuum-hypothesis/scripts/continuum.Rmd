@@ -1,0 +1,269 @@
+```{r setup, include=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+library(multcomp) # not available for this version of R
+library(stringr)
+library(textstem)
+library(tidyverse)
+library(emmeans)
+library(kableExtra)
+theme_set(theme_bw())
+library(ggrepel)
+cbPalette <- c("#56B4E9", "#D55E00", "#009E73","#999999", "#E69F00")
+this.dir <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(this.dir)
+source("../../helpers.R")
+
+cat <- read_csv("../data/cat_task.csv")
+sim <- read_csv("../data/sim_task.csv")
+```
+
+
+
+# Categorization Task
+
+```{r}
+model <- lmer(LogReactionTime ~ Task * Conceptual + (1 + Task | ID.true), data = cat)
+summary(model)
+```
+
+
+```{r}
+# 1️⃣ Fit your model as usual (Task can be a factor, or cTask contrast-coded)
+# model <- lmer(RT ~ cTask * Conceptual + (1 + cTask | Subject), data = dcen)
+
+# 2️⃣ Compute Task effect within each Conceptual condition
+emm <- emmeans(model, ~ Task | Conceptual)             # Task factor, not contrast-coded
+task_eff <- contrast(emm, method = "revpairwise", by = "Conceptual")
+
+# 3️⃣ Convert to dataframe for manipulation
+te <- as.data.frame(task_eff)
+
+# 4️⃣ Extract Task effect estimates and SEs
+task_effects <- te[, c("Conceptual", "estimate", "SE")]
+
+# 5️⃣ Separate Animacy vs others
+animacy_eff <- task_effects %>% filter(Conceptual == "Animacy") %>% pull(estimate)
+animacy_se  <- task_effects %>% filter(Conceptual == "Animacy") %>% pull(SE)
+
+other_eff   <- task_effects %>% filter(Conceptual != "Animacy") %>% pull(estimate)
+other_se    <- task_effects %>% filter(Conceptual != "Animacy") %>% pull(SE)
+
+# 6️⃣ Compute difference: Animacy vs mean of others
+mean_other <- mean(other_eff)
+diff <- animacy_eff - mean_other
+
+# 7️⃣ Approximate standard error (assuming independence)
+se_diff <- sqrt(animacy_se^2 + mean(other_se^2))
+
+# 8️⃣ Compute z and p-value
+z <- diff / se_diff
+p <- 2 * (1 - pnorm(abs(z)))
+
+# 9️⃣ Print results
+cat("Task effect difference (Animacy - mean of others):", round(diff, 4), "\n")
+cat("Approximate SE:", round(se_diff, 4), "\n")
+cat("Z-value:", round(z, 3), "\n")
+cat("Approximate p-value:", round(p, 4), "\n")
+
+```
+
+
+```{r}
+
+# Prepare data
+task_effects <- te[, c("Conceptual", "estimate", "SE")]
+
+# Compute upper and lower bounds for error bars
+task_effects$upper <- task_effects$estimate + task_effects$SE
+task_effects$lower <- task_effects$estimate - task_effects$SE
+
+# Highlight Animacy
+task_effects$highlight <- ifelse(task_effects$Conceptual == "Animacy", "Animacy", "Other")
+
+# Keep original order of Conceptual labels
+task_effects$Conceptual <- factor(task_effects$Conceptual, levels = task_effects$Conceptual)
+```
+
+```{r}
+# Plot
+ggplot(task_effects, aes(x = Conceptual, y = estimate, color = highlight)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1, size = .5) +
+  # scale_color_manual(values = c("Animacy" = "firebrick", "Other" = "steelblue")) +
+  labs(
+    x = "",
+    y = "Task effect",
+    title = "Categorization Task",
+    color = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 90, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50")
+    # labs(y = "Mean Reaction Time", x = "Experiment") +
+
+
+# ggsave("../graphs/cat_emmeans.jpg",width = 3, height = 4)
+
+
+```
+
+
+
+## Analysis
+```{r}
+model <- lmer(LogReactionTime ~ Task * Conceptual + (1 + Task | ID.true), data = cat)
+
+```
+
+```{r}
+# extract pairwise comparisons
+
+task_eff <- contrast(emmeans(model, ~ Task | Conceptual),
+                     method = "revpairwise")   # or "pairwise"
+
+### Converto to a data grid.
+task_eff_grid <- as.data.frame(task_eff)
+
+# Reconstruct them to emm grid
+te_grid <- update(task_eff, by = NULL)
+
+# Animacy vs..
+contrast(
+  te_grid,
+  list(Animacy_vs_Others = c(-3, 1, 1, 1)),
+  adjust = "none"
+)
+
+```
+
+
+
+
+
+# Similarity Judgment Task
+
+```{r}
+levels(as.factor(sim$FeatureMatch))
+
+# First remove controls from FeatureMatch
+sim <- sim %>% 
+  filter(!FeatureMatch %in% c("DissimilarControl","SimilarControl"))
+
+levels(as.factor(sim$FeatureMatch))
+```
+
+
+```{r}
+model_fm <- lmer(Response ~ FeatureMatch * Conceptual + (1 + FeatureMatch | ID.Ibex), data = sim)
+
+summary(model_fm)
+```
+
+```{r}
+# Marginal means for FeatureMatch x Conceptual
+emm_fm <- emmeans(model_fm, ~ FeatureMatch | Conceptual)
+
+# Pairwise contrasts across FeatureMatch within each Conceptual
+fm_eff <- contrast(emm_fm, method = "revpairwise", by = "Conceptual")
+
+te_fm <- as.data.frame(fm_eff)
+```
+
+
+```{r}
+# Compute the mean FeatureMatch effect per Conceptual
+fm_effects <- aggregate(estimate ~ Conceptual, data = te_fm, FUN = mean)
+fm_se <- aggregate(SE ~ Conceptual, data = te_fm, FUN = function(x) sqrt(mean(x^2)))
+fm_effects$SE <- fm_se$SE
+
+# Separate Animacy vs others
+animacy_eff <- fm_effects$estimate[fm_effects$Conceptual == "Animacy"]
+animacy_se  <- fm_effects$SE[fm_effects$Conceptual == "Animacy"]
+
+other_eff <- fm_effects$estimate[fm_effects$Conceptual != "Animacy"]
+other_se  <- fm_effects$SE[fm_effects$Conceptual != "Animacy"]
+
+# Compute difference Animacy vs mean of others
+mean_other <- mean(other_eff)
+diff <- animacy_eff - mean_other
+
+# Approximate SE
+se_diff <- sqrt(animacy_se^2 + mean(other_se^2))
+z <- diff / se_diff
+p <- 2 * (1 - pnorm(abs(z)))
+
+cat("FeatureMatch effect difference (Animacy - mean of others):", round(diff,4), "\n")
+cat("Approx SE:", round(se_diff,4), "\n")
+cat("Z-value:", round(z,3), "\n")
+cat("p-value:", round(p,4), "\n")
+
+```
+
+
+```{r}
+
+# Highlight Animacy
+fm_effects$highlight <- ifelse(fm_effects$Conceptual == "Animacy", "Animacy", "Other")
+fm_effects$Conceptual <- factor(fm_effects$Conceptual, levels = fm_effects$Conceptual)
+
+# Add upper/lower for error bars
+fm_effects$upper <- fm_effects$estimate + fm_effects$SE
+fm_effects$lower <- fm_effects$estimate - fm_effects$SE
+```
+
+
+
+```{r}
+ggplot(fm_effects, aes(x = Conceptual, y = estimate, color = highlight)) +
+  geom_point(size = 2) +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1, size = .5) +
+  # scale_color_manual(values = c("Animacy" = "firebrick", "Other" = "steelblue")) +
+  labs(
+    x = "",
+    y = "FeatureMatch effect",
+    title = "Similarity Judgement Task",
+    color = ""
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "top",
+    axis.text.x = element_text(angle = 90, hjust = 1),
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50")
+    # labs(y = "Mean Reaction Time", x = "Experiment") +
+
+
+ggsave("../graphs/sim_emmeans.jpg",width = 3, height = 4)
+
+```
+
+
+## Analysis
+
+```{r}
+
+fm_df <- as.data.frame(fm_eff)
+unique(fm_df$contrast)
+
+# extract pairwise comparisons
+fm_eff <- contrast(emmeans(model_fm, ~ FeatureMatch | Conceptual),
+                   method = "revpairwise")
+
+fm_main <- subset(fm_eff, contrast == "ValenceMatchingOnly - ConceptualMatchingOnly")
+fm_grid <- regrid(fm_main)
+
+contrast(
+  fm_grid,
+  list(Animacy_vs_Others = c(-3, 1, 1, 1))
+)
+
+```
+

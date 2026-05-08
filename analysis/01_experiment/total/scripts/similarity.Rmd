@@ -1,5 +1,5 @@
 ---
-  title: "Everything"
+  title: "Everything: Similarity Judgment"
 author: "morgan moyer"
 date: "`r Sys.Date()`"
 output: html_document
@@ -28,35 +28,45 @@ source("../../../helpers.R")
 v <- read_csv("../../04_v1/data/processed.csv")
 v["Category"] <- "Verbs"
 v["Experiment"] <- "Ex1a: Conc-Abs (Verbs)"
+v["Conceptual"] <- "Conc-Abs"
 
 n <- read_csv("../../05_n1/data/processed.csv")
 n["Category"] <- "Nouns"
 n["Experiment"] <- "Ex1b: Conc-Abs (Nouns)"
+n["Conceptual"] <- "Conc-Abs"
 
 a <- read_csv("../../06_a1/data/processed.csv")
 a["Category"] <- "Adjs"
 a["Experiment"] <- "Ex1c: Conc-Abs (Adjs)"
+a["Conceptual"] <- "Conc-Abs"
 
 a2 <- read_csv("../../07_a2/data/processed.csv")
 a2["Category"] <- "Adjs"
 a2["Experiment"] <- "Ex2b: Phys-Soc (Adjs)"
+a2["Conceptual"] <- "Phys-Soc/Psych"
 
 
 v2 <- read_csv("../../01_v2/data/processed.csv")
 v2["Category"] <- "Verbs"
 v2["Experiment"] <- "Ex2a: Phys-Psyc (Verbs)"
+v2["Conceptual"] <- "Phys-Soc/Psych"
 
 
 n2 <- read_csv("../../02_n2/data/processed.csv")
 n2["Category"] <- "Nouns"
 n2["Experiment"] <- "Ex3: Animacy (Nouns)"
+n2["Conceptual"] <- "Animacy"
 
 s <- read_csv("../../03_s/data/processed.csv")
 s["Experiment"] <- "Ex4: Syntactic (N v. V)"
+s["Conceptual"] <- "Syntactic"
 
 d <- bind_rows(v,n,a,a2,v2,n2,s)
 nrow(d)
 names(d)
+
+length(unique(d$ID.Ibex))/7
+
 
 # 
 sub <- d[,c("WordPair","ID.Ibex","Experiment","Response","Valence","Conceptual","FeatureMatch")]
@@ -106,8 +116,19 @@ length(to_exclude_justright) / length(unique(d$ID.Ibex))
 # Final n = 299
 length(unique(d$ID.Ibex)) - length(to_exclude_justright)
 
-
 ```
+
+
+```{r}
+final <- d %>% 
+  filter(!ID.Ibex %in% to_exclude_justright) 
+final$Conceptual = as.factor(final$Conceptual)
+final$Conceptual <- relevel(final$Conceptual, ref = "Animacy")
+# final$Task <- ifelse(final$Task == "Valence", "Valence", "Conceptual")
+# final$Task <- factor(final$Task, levels = c("Conceptual","Valence"))
+# write.csv(final,"../data/sim_task.csv")
+```
+
 
 ```{r}
 agr <- d %>% 
@@ -194,7 +215,9 @@ ggplot(data=agr, aes(x=FeatureMatch,y=MeanPropSimilar, fill=FeatureMatch)) +
         # legend.position = "none"# legend labels
       )
 
-ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
+# ggsave("../graphs/simex-wide.pdf", width = 8, height = 4)
+# ggsave("../graphs/simex-wide.jpg", width = 8, height = 3)
+
 # ggsave("../graphs/simex-legend.pdf", width = 7, height = 8)
 
 ```
@@ -259,7 +282,7 @@ ggplot(data=agr, aes(x=FeatureMatch,y=MeanPropSimilar, fill=FeatureMatch)) +
       )
 
 # ggsave("../graphs/simex-wide.pdf", width = 6, height = 3)
-ggsave("../graphs/simex-long-legend.jpeg", width = 7, height = 7)
+# ggsave("../graphs/simex-long-legend.jpeg", width = 7, height = 7)
 
 ```
 
@@ -312,6 +335,32 @@ ggplot(d_plot, aes(x = FeatureMatch, y = Response, fill = FeatureMatch)) +
   )
 
 ```
+
+
+# ARE THERE DIFFERENCES WRT FOIL?
+
+```{r}
+
+df.outliers.removed$Conceptual = as.factor(df.outliers.removed$Conceptual)
+df.outliers.removed$Conceptual <- relevel(df.outliers.removed$Conceptual, ref = "Animacy")
+
+
+dcen <- d %>% 
+    filter(!ID.Ibex %in% to_exclude_justright) %>% 
+  mutate(Task = ifelse(Task == "Valence", "Valence", "Conceptual"),
+          Task = factor(Task, levels = c("Valence", "Conceptual"))) %>% 
+  mutate(Word = as.factor(Word),
+         ID.true = as.factor(ID.true),
+         Task = as.factor(Task),
+         Conceptual = as.factor(Conceptual),
+         cTask = as.numeric(Task)-mean(as.numeric(Task)))
+
+model <- lmer(LogReactionTime ~ cTask * Conceptual + (1 + cTask | ID.true), data = dcen)
+
+summary(model)
+
+```
+
 
 
 ```{r}

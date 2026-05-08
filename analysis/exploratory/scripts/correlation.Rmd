@@ -33,7 +33,7 @@ names(sj)[names(sj) == 'Response'] <- 'SimilarityRating'
 
 
 ```{r}
-
+names(sc)
 # Center first
 sc.cen <- sc %>% 
   mutate(Task = ifelse(Task == "Valence", "Valence", "Conceptual"),
@@ -43,7 +43,7 @@ sc.cen <- sc %>%
          cTask = as.numeric(Task)-mean(as.numeric(Task)))
 
 # Fit model (example with lm, adjust if you're using lmer)
-mod1 <- lmer(LogReactionTime ~ cTask * ConceptualFoil + (1|ID.true), data = sc.cen)
+mod1 <- lmer(MeanReactionTime ~ cTask * ConceptualFoil + (1|), data = sc.cen)
 
 # Task contrast within each foil
 task_by_foil <- emmeans(mod1, pairwise ~ cTask | ConceptualFoil)

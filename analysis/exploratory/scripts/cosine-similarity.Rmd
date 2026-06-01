@@ -1,0 +1,251 @@
+---
+title: "Featural Similarity vs Vector-Space Similarity"
+author: "author"
+date: "`r Sys.Date()`"
+output: html_document
+---
+  
+```{r setup, include=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(lme4)
+library(lmerTest)
+library(multcomp) # not available for this version of R
+library(stringr)
+library(textstem)
+library(tidyverse)
+library(kableExtra)
+theme_set(theme_bw())
+library(ggrepel)
+cbPalette <- c("#56B4E9", "#D55E00", "#009E73","#999999", "#E69F00")
+this.dir <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(this.dir)
+source("../../helpers.R")
+
+v <- read_csv("../../01_experiment/04_v1/data/processed.csv")
+v["Category"] <- "Verbs"
+v["Experiment"] <- "Ex1a: Conc-Abs (Verbs)"
+v["Conceptual"] <- "Conc-Abs"
+
+n <- read_csv("../../01_experiment/05_n1/data/processed.csv")
+n["Category"] <- "Nouns"
+n["Experiment"] <- "Ex1b: Conc-Abs (Nouns)"
+n["Conceptual"] <- "Conc-Abs"
+
+a <- read_csv("../../01_experiment/06_a1/data/processed.csv")
+a["Category"] <- "Adjs"
+a["Experiment"] <- "Ex1c: Conc-Abs (Adjs)"
+a["Conceptual"] <- "Conc-Abs"
+
+a2 <- read_csv("../../01_experiment/07_a2/data/processed.csv")
+a2["Category"] <- "Adjs"
+a2["Experiment"] <- "Ex2b: Phys-Soc (Adjs)"
+a2["Conceptual"] <- "Phys-Soc/Psych"
+
+
+v2 <- read_csv("../../01_experiment/01_v2/data/processed.csv")
+v2["Category"] <- "Verbs"
+v2["Experiment"] <- "Ex2a: Phys-Psyc (Verbs)"
+v2["Conceptual"] <- "Phys-Soc/Psych"
+
+
+n2 <- read_csv("../../01_experiment/02_n2/data/processed.csv")
+n2["Category"] <- "Nouns"
+n2["Experiment"] <- "Ex3: Animacy (Nouns)"
+n2["Conceptual"] <- "Animacy"
+
+s <- read_csv("../../01_experiment/03_s/data/processed.csv")
+s["Experiment"] <- "Ex4: Syntactic (N v. V)"
+s["Conceptual"] <- "Syntactic"
+
+d <- bind_rows(v,n,a,a2,v2,n2,s)
+nrow(d)
+names(d)
+d$FeatureMatch <- as.factor(d$FeatureMatch)
+d$FeatureMatch <- recode(d$FeatureMatch, ConceptualMatchingOnly = 'TruthCondMatchingOnly')
+
+sim.model <- read_csv("../data/total_similarity.csv")
+names(sim.model)
+sim.model <- sim.model %>%
+  rename(
+    Word2VecSimilarity = W2VSimilarity,
+    MiniLMSimilarity = BertSimilarity1,
+    MPNetSimilarity = BertSimilarity2
+  )
+
+```
+
+# First get averade rating for each WordPari
+
+```{r}
+rating.by.pair <- d %>% 
+  select(WordPair,Response,Word1,Word2,Experiment) %>% 
+  group_by(WordPair) %>% 
+  mutate(MeanSimilarity = mean(Response))
+
+names(rating.by.pair)
+```
+
+```{r}
+names(sim.model)
+total <- inner_join(rating.by.pair,sim.model, 
+                    by=c("Word1","Word2"),
+                    relationship = "many-to-many")
+
+names(total)
+```
+
+## Correlations between the two 
+```{r}
+cor(total$MeanSimilarity, total$Word2VecSimilarity,
+    use = "complete.obs")
+
+cor(total$MeanSimilarity, total$MiniLMSimilarity,
+    use = "complete.obs")
+
+cor(total$MeanSimilarity, total$MPNetSimilarity,
+    use = "complete.obs")
+```
+
+```{r}
+total$FeatureMatch <- as.factor(total$FeatureMatch)
+levels(total$FeatureMatch)
+
+df_complete <- total %>%
+  # filter(!FeatureMatch %in% c())
+  dplyr::select(
+    Experiment,
+    MeanSimilarity,
+    FeatureMatch,
+    Word2VecSimilarity,
+    MiniLMSimilarity,
+    MPNetSimilarity
+  ) %>%
+  na.omit()
+```
+
+
+
+
+```{r}
+m_feature <- lm(MeanSimilarity ~ FeatureMatch, data = df_complete)
+
+m_word2vec <- lm(MeanSimilarity ~ Word2VecSimilarity, data = df_complete)
+
+m_minilm <- lm(MeanSimilarity ~ MiniLMSimilarity, data = df_complete)
+
+m_mpnet <- lm(MeanSimilarity ~ MPNetSimilarity, data = df_complete)
+```
+
+```{r}
+summary(m_feature)$r.squared
+
+summary(m_word2vec)$r.squared
+summary(m_minilm)$r.squared
+summary(m_mpnet)$r.squared
+```
+
+
+```{r}
+AIC(m_feature,
+    m_word2vec,
+    m_minilm,
+    m_mpnet)
+```
+
+```{r}
+m_word2vec <- lm(
+  MeanSimilarity ~ Word2VecSimilarity + Experiment,
+  data = df_complete
+)
+
+m_word2vec_feature <- lm(
+  MeanSimilarity ~ Word2VecSimilarity + Experiment + FeatureMatch,
+  data = df_complete
+)
+
+anova(m_word2vec, m_word2vec_feature)
+```
+
+
+```{r}
+
+m.full <- lm(
+  MeanSimilarity ~
+    Word2VecSimilarity +
+    FeatureMatch * Experiment,
+  data = df_complete
+)
+
+
+anova(m_word2vec_feature, m.full)
+```
+
+
+```{r}
+
+nrow(df_complete)
+nrow(total)
+
+df_long <- df_complete %>%
+  pivot_longer(
+    cols = c(MeanSimilarity,
+             Word2VecSimilarity,
+             MiniLMSimilarity,
+             MPNetSimilarity),
+    names_to = "Model",
+    values_to = "Similarity"
+  )
+
+ggplot(df_long,
+       aes(x = FeatureMatch,
+           y = Similarity,
+           color = Model,
+           group = Model)) +
+
+  stat_summary(fun = mean,
+               geom = "line",
+               linewidth = 1.2) +
+
+  stat_summary(fun = mean,
+               geom = "point",
+               size = 2.5) +
+
+  theme_classic(base_size = 14) +
+
+  labs(
+    x = "Feature Match Condition",
+    y = "Similarity",
+    color = "Measure"
+  )
+```
+
+
+# Plot differences 
+```{r}
+df_complete <- df_complete %>%
+  mutate(
+    w2v_error = Word2VecSimilarity - MeanSimilarity,
+    minilm_error = MiniLMSimilarity - MeanSimilarity,
+    mpnet_error = MPNetSimilarity - MeanSimilarity
+  )
+
+df_long <- df_complete %>%
+  pivot_longer(
+    cols = c(w2v_error, minilm_error, mpnet_error),
+    names_to = "Model",
+    values_to = "Error"
+  )
+
+ggplot(df_long,
+       aes(x = FeatureMatch,
+           y = Error,
+           color = Model,
+           group = Model)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.2) +
+  stat_summary(fun = mean, geom = "point") +
+  theme_classic() +
+  labs(y = "Model − Human (Error)")
+```
+
+

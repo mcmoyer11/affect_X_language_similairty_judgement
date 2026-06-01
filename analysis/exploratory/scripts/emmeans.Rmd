@@ -1,3 +1,10 @@
+---
+title: "Estimated Marginals Means Analysis of two tasks: Does Animacy differ from other TC Foils?"
+author: "author"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
 ```{r setup, include=FALSE, warning=FALSE, echo=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ggplot2)
@@ -17,7 +24,12 @@ setwd(this.dir)
 source("../../helpers.R")
 
 cat <- read_csv("../data/cat_task.csv")
+cat$Task <- as.factor(cat$Task)
+cat$Task <- recode(cat$Task, Conceptual = 'TruthCond')
+
 sim <- read_csv("../data/sim_task.csv")
+sim$FeatureMatch <- as.factor(sim$FeatureMatch)
+sim$FeatureMatch <- recode(sim$FeatureMatch, ConceptualMatchingOnly = 'TruthCondMatchingOnly')
 ```
 
 
@@ -257,7 +269,7 @@ unique(fm_df$contrast)
 fm_eff <- contrast(emmeans(model_fm, ~ FeatureMatch | Conceptual),
                    method = "revpairwise")
 
-fm_main <- subset(fm_eff, contrast == "ValenceMatchingOnly - ConceptualMatchingOnly")
+fm_main <- subset(fm_eff, contrast == "ValenceMatchingOnly - TruthCondMatchingOnly")
 fm_grid <- regrid(fm_main)
 
 contrast(

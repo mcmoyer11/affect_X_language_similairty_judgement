@@ -1,6 +1,6 @@
 ---
 title: "Valance Asymmetries"
-author: "morgan moyer"
+author: "author"
 date: "`r Sys.Date()`"
 output: html_document
 ---
@@ -26,9 +26,9 @@ setwd(this.dir)
 source("../../helpers.R")
 
 sc <- read_csv("../data/categorization.csv")  
-names(sc)[names(sc) == 'Experiment'] <- 'ConceptualFoil'
+names(sc)[names(sc) == 'Experiment'] <- 'TruthCondFoil'
 sj <- read_csv("../data/similarity.csv")
-names(sj)[names(sj) == 'Experiment'] <- 'ConceptualFoil'
+names(sj)[names(sj) == 'Experiment'] <- 'TruthCondFoil'
 names(sj)[names(sj) == 'Response'] <- 'SimilarityRating'
 
 ```
@@ -38,24 +38,19 @@ names(sj)[names(sj) == 'Response'] <- 'SimilarityRating'
 ## Preprocessing
 ```{r}
 sc <- sc %>% 
-  separate(col = ConcValCombo, into = c("Conceptual", "Valence"), sep = "\\-")
+  separate(col = ConcValCombo, into = c("TruthCond", "Valence"), sep = "\\-")
 
 ```
 
 
 ```{r}
 agr <- sc %>% 
-  group_by(ConceptualFoil,Task,Valence) %>% 
+  group_by(TruthCondFoil,Task,Valence) %>% 
   summarize(MeanRT = mean(ReactionTime),
             SD = sd(ReactionTime),
             MeanLogRT = mean(LogReactionTime))
 print(agr)
 ```
-
-```{r}
-
-```
-
 
 
 # Total RT with median and mode stats
@@ -72,8 +67,8 @@ agr <- sc %>%
     mutate(YMin = MeanReactionTime - CILow, 
            YMax = MeanReactionTime + CIHigh)
 
-agr$Task <- ifelse(agr$Task == "Valence", "Valence", "Conceptual")
-agr$Task <- factor(agr$Task, levels = c("Conceptual","Valence"))
+agr$Task <- ifelse(agr$Task == "Valence", "Valence", "TruthCond")
+agr$Task <- factor(agr$Task, levels = c("TruthCond","Valence"))
 
 # Set dodge width to match violin grouping
 dodge_width <- 0.9
@@ -116,7 +111,7 @@ ggplot(agr, aes(x = Task, y = MeanReactionTime, fill = Valence)) +
 length(sc[is.na(sc$Valence), ])
 sc[is.na(sc$Valence), ]
 
-print(unique(sc[is.na(sc$Valence), ]$ConceptualFoil))
+print(unique(sc[is.na(sc$Valence), ]$TruthCondFoil))
 
 ```
 
@@ -127,15 +122,15 @@ print(unique(sc[is.na(sc$Valence), ]$ConceptualFoil))
 
 names(sc)
 agr <- sc %>%
-    group_by(ConceptualFoil,Valence,Task,Word) %>%
+    group_by(TruthCondFoil,Valence,Task,Word) %>%
     summarize(MeanReactionTime = mean(LogReactionTime), 
               CILow = ci.low(LogReactionTime), 
               CIHigh = ci.high(ReactionTime)) %>%
     mutate(YMin = MeanReactionTime - CILow, 
            YMax = MeanReactionTime + CIHigh)
 
-agr$Task <- ifelse(agr$Task == "Valence", "Valence", "Conceptual")
-agr$Task <- factor(agr$Task, levels = c("Conceptual","Valence"))
+agr$Task <- ifelse(agr$Task == "Valence", "Valence", "TruthCond")
+agr$Task <- factor(agr$Task, levels = c("TruthCond","Valence"))
 
 # Set dodge width to match violin grouping
 dodge_width <- 0.9
@@ -143,7 +138,7 @@ dodge_width <- 0.9
 ggplot(agr, aes(x = Valence, y = MeanReactionTime, fill = Task)) + 
   geom_violin(trim = FALSE, alpha = 0.4, position = position_dodge(width = dodge_width)) +
     facet_wrap(
-      ~ConceptualFoil,
+      ~TruthCondFoil,
       ncol=4,
       labeller=label_wrap_gen(width=16)
       ) +
@@ -191,26 +186,26 @@ ggplot(agr, aes(x = Valence, y = MeanReactionTime, fill = Task)) +
 ```{r}
 
 names(sj)
-sj$ConceptualFoil <- as.factor(sj$ConceptualFoil)
+sj$TruthCondFoil <- as.factor(sj$TruthCondFoil)
 agr <- sj %>%
   filter(FeatureMatch == "ValenceMatchingOnly") %>% 
-    group_by(ConceptualFoil,Valence,WordPair) %>%
+    group_by(TruthCondFoil,Valence,WordPair) %>%
     summarize(MeanSimilarity = mean(SimilarityRating), 
               CILow = ci.low(SimilarityRating), 
               CIHigh = ci.high(SimilarityRating)) %>%
     mutate(YMin = MeanSimilarity - CILow, 
            YMax = MeanSimilarity + CIHigh)
 
-# agr$Task <- ifelse(agr$Task == "Valence", "Valence", "Conceptual")
-# agr$Task <- factor(agr$Task, levels = c("Conceptual","Valence"))
+# agr$Task <- ifelse(agr$Task == "Valence", "Valence", "TruthCond")
+# agr$Task <- factor(agr$Task, levels = c("TruthCond","Valence"))
 
 # Set dodge width to match violin grouping
 dodge_width <- 0.9
 
-ggplot(agr, aes(x = ConceptualFoil, y = MeanSimilarity, fill = Valence)) + 
+ggplot(agr, aes(x = TruthCondFoil, y = MeanSimilarity, fill = Valence)) + 
   geom_violin(trim = FALSE, alpha = 0.4, position = position_dodge(width = dodge_width)) +
     # facet_wrap(
-    #   ~ConceptualFoil,
+    #   ~TruthCondFoil,
     #   ncol=4,
     #   labeller=label_wrap_gen(width=16)
     #   ) +
@@ -263,7 +258,7 @@ center <- sj %>%
 
 
 
-m <- lmer(SimilarityRating ~ cValence*ConceptualFoil + (1|WordPair) + (1+cValence|ID.true), data = center)
+m <- lmer(SimilarityRating ~ cValence*TruthCondFoil + (1|WordPair) + (1+cValence|ID.true), data = center)
 summary(m)
   
 

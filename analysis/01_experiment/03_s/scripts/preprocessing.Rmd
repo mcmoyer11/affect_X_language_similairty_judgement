@@ -1,6 +1,6 @@
 ---
 title: 'Preprocessing Similarity Judgment Task'
-author: "morgan moyer"
+author: "author"
 date: "`r Sys.Date()`"
 output: html_document
 ---

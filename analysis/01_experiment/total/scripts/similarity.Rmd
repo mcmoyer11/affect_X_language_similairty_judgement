@@ -1,6 +1,6 @@
 ---
-  title: "Everything: Similarity Judgment"
-author: "morgan moyer"
+title: "Everything: Similarity Judgment"
+author: "author"
 date: "`r Sys.Date()`"
 output: html_document
 ---
@@ -64,6 +64,8 @@ s["Conceptual"] <- "Syntactic"
 d <- bind_rows(v,n,a,a2,v2,n2,s)
 nrow(d)
 names(d)
+d$FeatureMatch <- as.factor(d$FeatureMatch)
+d$FeatureMatch <- recode(d$FeatureMatch, ConceptualMatchingOnly = 'TruthCondMatchingOnly')
 
 length(unique(d$ID.Ibex))/7
 
@@ -142,7 +144,7 @@ print(agr)
 
 
 ```{r}
-agr <- d %>% 
+agr <-d %>% 
   filter(!ID.Ibex %in% to_exclude_justright) %>% 
   group_by(Experiment) %>% 
   reframe(MeanPropSimilar = mean(Response), 
@@ -173,7 +175,7 @@ agr <- d %>%
 
 good_colors <- c(
   "ValenceMatchingOnly" = "#00BFC4",
-  "ConceptualMatchingOnly" = "#F8766D",
+  "TruthCondMatchingOnly" = "#F8766D",
   "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
   "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
   "DissimilarControl" = "#818589",
@@ -184,7 +186,7 @@ good_colors <- c(
 feature_levels <- c(
   "DissimilarControl",
   "MaxMismatch",
-  "ConceptualMatchingOnly",
+  "TruthCondMatchingOnly",
   "ValenceMatchingOnly",
   "MaxMatch",
   "SimilarControl"
@@ -238,7 +240,7 @@ agr <- d %>%
 
 good_colors <- c(
   "ValenceMatchingOnly" = "#00BFC4",
-  "ConceptualMatchingOnly" = "#F8766D",
+  "TruthCondMatchingOnly" = "#F8766D",
   "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
   "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
   "DissimilarControl" = "#818589",
@@ -249,7 +251,7 @@ good_colors <- c(
 feature_levels <- c(
   "DissimilarControl",
   "MaxMismatch",
-  "ConceptualMatchingOnly",
+  "TruthCondMatchingOnly",
   "ValenceMatchingOnly",
   "MaxMatch",
   "SimilarControl"
@@ -341,23 +343,23 @@ ggplot(d_plot, aes(x = FeatureMatch, y = Response, fill = FeatureMatch)) +
 
 ```{r}
 
-df.outliers.removed$Conceptual = as.factor(df.outliers.removed$Conceptual)
-df.outliers.removed$Conceptual <- relevel(df.outliers.removed$Conceptual, ref = "Animacy")
-
-
-dcen <- d %>% 
-    filter(!ID.Ibex %in% to_exclude_justright) %>% 
-  mutate(Task = ifelse(Task == "Valence", "Valence", "Conceptual"),
-          Task = factor(Task, levels = c("Valence", "Conceptual"))) %>% 
-  mutate(Word = as.factor(Word),
-         ID.true = as.factor(ID.true),
-         Task = as.factor(Task),
-         Conceptual = as.factor(Conceptual),
-         cTask = as.numeric(Task)-mean(as.numeric(Task)))
-
-model <- lmer(LogReactionTime ~ cTask * Conceptual + (1 + cTask | ID.true), data = dcen)
-
-summary(model)
+# df.outliers.removed$Conceptual = as.factor(df.outliers.removed$Conceptual)
+# df.outliers.removed$Conceptual <- relevel(df.outliers.removed$Conceptual, ref = "Animacy")
+# 
+# names(d)
+# dcen <- d %>% 
+#     filter(!ID.Ibex %in% to_exclude_justright) %>% 
+#   mutate(Task = ifelse(Task == "Valence", "Valence", "TruthCond"),
+#           Task = factor(Task, levels = c("Valence", "TruthCond"))) %>% 
+#   mutate(Word = as.factor(Word),
+#          ID.true = as.factor(ID.true),
+#          Task = as.factor(Task),
+#          Conceptual = as.factor(Conceptual),
+#          cTask = as.numeric(Task)-mean(as.numeric(Task)))
+# 
+# model <- lmer(LogReactionTime ~ cTask * Conceptual + (1 + cTask | ID.true), data = dcen)
+# 
+# summary(model)
 
 ```
 
@@ -366,7 +368,7 @@ summary(model)
 ```{r}
 dcen <- d %>% 
   filter(!ID.Ibex %in% to_exclude_justright) %>% 
-  filter(FeatureMatch %in% c("ConceptualMatchingOnly","ValenceMatchingOnly")) %>% 
+  filter(FeatureMatch %in% c("TruthCondMatchingOnly","ValenceMatchingOnly")) %>% 
   mutate(WordPair = as.factor(WordPair),
          ID.Ibex = as.factor(ID.Ibex),
          FeatureMatch = as.factor(FeatureMatch),

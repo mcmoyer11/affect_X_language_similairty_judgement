@@ -1,6 +1,6 @@
 ---
 title: "Similarity Judgment Task Analysis: Verbs Abs-Conc"
-author: "morgan moyer"
+author: "author"
 date: "`r Sys.Date()`"
 output: html_document
 ---
@@ -26,6 +26,8 @@ setwd(this.dir)
 source("../../../helpers.R")
 
 d <- read.csv("../data/processed.csv")
+d$FeatureMatch <- as.factor(d$FeatureMatch)
+d$FeatureMatch <- recode(d$FeatureMatch, ConceptualMatchingOnly = 'TruthCondMatchingOnly')
 d["WordPair"] <- paste(d$Word1,d$Word2,sep="-")
 ```
 
@@ -179,7 +181,7 @@ agr <- d %>%
 
 good_colors <- c(
   "ValenceMatchingOnly" = "#00BFC4",
-  "ConceptualMatchingOnly" = "#F8766D",
+  "TruthCondMatchingOnly" = "#F8766D",
   "MaxMismatch" = adjustcolor("#F8766D", alpha.f = 0.4),  # lighter via alpha
   "MaxMatch" = adjustcolor("#00BFC4", alpha.f = 0.4),  # lighter via alpha
   "DissimilarControl" = "#999999",

@@ -20,41 +20,41 @@ library(ggrepel)
 cbPalette <- c("#56B4E9", "#D55E00", "#009E73","#999999", "#E69F00")
 this.dir <- dirname(rstudioapi::getSourceEditorContext()$path)
 setwd(this.dir)
-source("../../helpers.R")
+source("../../../helpers.R")
 
-v <- read_csv("../../01_experiment/04_v1/data/processed.csv")
+v <- read_csv("../../04_v1/data/processed.csv")
 v["Category"] <- "Verbs"
 v["Experiment"] <- "Ex1a: Conc-Abs (Verbs)"
 v["Conceptual"] <- "Conc-Abs"
 
-n <- read_csv("../../01_experiment/05_n1/data/processed.csv")
+n <- read_csv("../../05_n1/data/processed.csv")
 n["Category"] <- "Nouns"
 n["Experiment"] <- "Ex1b: Conc-Abs (Nouns)"
 n["Conceptual"] <- "Conc-Abs"
 
-a <- read_csv("../../01_experiment/06_a1/data/processed.csv")
+a <- read_csv("../../06_a1/data/processed.csv")
 a["Category"] <- "Adjs"
 a["Experiment"] <- "Ex1c: Conc-Abs (Adjs)"
 a["Conceptual"] <- "Conc-Abs"
 
-a2 <- read_csv("../../01_experiment/07_a2/data/processed.csv")
+a2 <- read_csv("../../07_a2/data/processed.csv")
 a2["Category"] <- "Adjs"
 a2["Experiment"] <- "Ex2b: Phys-Soc (Adjs)"
 a2["Conceptual"] <- "Phys-Soc/Psych"
 
 
-v2 <- read_csv("../../01_experiment/01_v2/data/processed.csv")
+v2 <- read_csv("../../01_v2/data/processed.csv")
 v2["Category"] <- "Verbs"
 v2["Experiment"] <- "Ex2a: Phys-Psyc (Verbs)"
 v2["Conceptual"] <- "Phys-Soc/Psych"
 
 
-n2 <- read_csv("../../01_experiment/02_n2/data/processed.csv")
+n2 <- read_csv("../../02_n2/data/processed.csv")
 n2["Category"] <- "Nouns"
 n2["Experiment"] <- "Ex3: Animacy (Nouns)"
 n2["Conceptual"] <- "Animacy"
 
-s <- read_csv("../../01_experiment/03_s/data/processed.csv")
+s <- read_csv("../../03_s/data/processed.csv")
 s["Experiment"] <- "Ex4: Syntactic (N v. V)"
 s["Conceptual"] <- "Syntactic"
 
@@ -64,7 +64,7 @@ names(d)
 d$FeatureMatch <- as.factor(d$FeatureMatch)
 d$FeatureMatch <- recode(d$FeatureMatch, ConceptualMatchingOnly = 'TruthCondMatchingOnly')
 
-sim.model <- read_csv("../data/total_similarity.csv")
+sim.model <- read_csv("../data/vector_space_similarity.csv")
 names(sim.model)
 sim.model <- sim.model %>%
   rename(

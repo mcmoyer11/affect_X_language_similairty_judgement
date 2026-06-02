@@ -13,14 +13,14 @@ All corpus-based analysis, including stimuli (word pair) generation and vector s
 ## Analysis
 
 All data and analysis scripts. R Markdown files.
-This directory also has a folder "exploratory_cat_and_sim" which compares the Similarity Judgement Task results with the Categorization Tasks, found in the repo (https://anonymous.4open.science/r/affect_X_language_speeded_categorization-CEBD/README.md).
+This directory also has a folder "exploratory_cat_and_sim" which compares the Similarity Judgement Task results with the Categorization Tasks, found in the repo: https://anonymous.4open.science/r/affect_X_language_speeded_categorization-CEBD/README.md.
 
 
 ## OSF Preregistration
 
-The OSF preregistration can be found here: https://osf.io/3rt46/overview?view_only=89adddcbbb7446db8225ea02ae3f89ed.
+The OSF preregistration can be found here: https://osf.io/3rt46/overview?view_only=25dbb901d1744e318b66a5b16239ed24.
 
 
 ## Sister Repo
 
-The sister Repo for this project is here (https://anonymous.4open.science/r/affect_X_language_speeded_categorization-CEBD/README.md).
+The sister Repo for this project is here: https://anonymous.4open.science/r/affect_X_language_speeded_categorization-CEBD/README.md.

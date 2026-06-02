@@ -23,4 +23,4 @@ The OSF project can be found [here](https://osf.io/3rt46/overview?view_only=25db
 
 ## Sister Repo
 
-The sister Repo for this project is [here])https://anonymous.4open.science/r/affect_X_language_speeded_categorization-CEBD/README.md).
+The sister Repo for this project is [here](https://anonymous.4open.science/r/affect_X_language_speeded_categorization-CEBD/README.md).

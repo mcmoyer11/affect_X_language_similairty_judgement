@@ -1,0 +1,11 @@
+Word1,Word2,FeatureMatch,Conceptual,Valence
+begin,start,SimilarControl,,
+end,finish,SimilarControl,,
+speak,talk,SimilarControl,,
+buy,purchase,SimilarControl,,
+get,obtain,SimilarControl,,
+need,require,SimilarControl,,
+help,assist,SimilarControl,,
+ask,inquire,SimilarControl,,
+show,display,SimilarControl,,
+use,employ,SimilarControl,,

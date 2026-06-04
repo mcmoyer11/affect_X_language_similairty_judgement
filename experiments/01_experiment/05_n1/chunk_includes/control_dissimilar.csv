@@ -1,0 +1,11 @@
+Word1,Word2,FeatureMatch,Conceptual,Valence
+enter,exit,DissimilarControl,,
+come,go,DissimilarControl,,
+open,close,DissimilarControl,,
+begin,end,DissimilarControl,,
+arrive,leave,DissimilarControl,,
+rise,fall,DissimilarControl,,
+increase,decrease,DissimilarControl,,
+push,pull,DissimilarControl,,
+add,remove,DissimilarControl,,
+give,take,DissimilarControl,,

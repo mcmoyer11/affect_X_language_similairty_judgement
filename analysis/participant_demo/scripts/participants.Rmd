@@ -1,0 +1,137 @@
+---
+title: "Similarity Judgment: Participant Demographics"
+author: "author"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(purrr)
+library(dplyr)
+library(fs)
+library(ggplot2)
+this.dir <- dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(this.dir)
+```
+
+# Reads in all participant demos from prolific
+
+```{r}
+read_all_subfolders <- function(dir_path, file_pattern = "\\.csv$") {
+  files <- list.files(
+    path = dir_path,
+    pattern = file_pattern,
+    full.names = TRUE,
+    recursive = TRUE
+  )
+
+  dfs <- lapply(files, function(f) {
+    df <- read.csv(f, stringsAsFactors = FALSE)
+    df$Experiment <- basename(dirname(f))
+    df
+  })
+
+  do.call(rbind, dfs)
+}
+# Call it
+combined_df <- read_all_subfolders("../data/", file_pattern = "\\.csv$")
+```
+
+
+```{r}
+nrow(combined_df)
+length(unique(combined_df$Participant.id))
+
+# Remove RETURNED stat
+d <- combined_df %>% 
+  filter(Status == "APPROVED")
+
+nrow(d)
+length(unique(d$Participant.id))
+```
+
+# Age
+
+```{r}
+d$Age <- as.numeric(d$Age)
+
+# View summary
+summary(d$Age)
+range(d$Age, na.rm = TRUE)
+
+# Count NAs
+sum(is.na(d$Age))
+# Count valid values
+length(d$Age) - sum(is.na(d$Age))
+
+median(d$Age, na.rm = TRUE)
+mean(d$Age, na.rm = TRUE)
+
+median(d$Age,, na.rm = TRUE)
+IQR(d$Age, na.rm = TRUE)
+sd(d$Age, na.rm = TRUE)
+
+
+
+```
+
+```{r}
+# Calculate statistics
+age_mean <- mean(d$Age, na.rm = TRUE)
+age_median <- median(d$Age, na.rm = TRUE)
+age_mode <- d$Age[which.max(table(d$Age))]  # or use a mode function
+
+# Find max density for y-position
+dens <- density(d$Age, na.rm = TRUE)
+y_max <- max(dens$y)
+x_max <- max(dens$x)
+
+ggplot(d, aes(x = Age)) + 
+  geom_density() +
+  
+  # Mean line (blue)
+  geom_vline(xintercept = age_mean,
+             color = "blue", linetype = "dashed", linewidth = 1) +
+  
+  # Median line (red)
+  geom_vline(xintercept = age_median,
+             color = "red", linetype = "dashed", linewidth = 1) +
+  
+  # Mode line (green)
+  geom_vline(xintercept = age_mode,
+             color = "green", linetype = "dashed", linewidth = 1) +
+
+    # Labels at top right
+  annotate("text", x = x_max, y = y_max,
+           label = paste0("Mean = ", round(age_mean, 1)),
+           color = "blue", size = 4, hjust = 4, vjust = 4) +
+  annotate("text", x = x_max, y = y_max,
+           label = paste0("Median = ", round(age_median, 1)),
+           color = "red", size = 4, hjust = 4.05, vjust = 2.5) +
+  annotate("text", x = x_max, y = y_max,
+           label = paste0("Mode = ", round(age_mode, 1)),
+           color = "green", size = 4, hjust = 4.7, vjust = 1)
+```
+
+
+```{r}
+
+ggplot(d, aes(x=Age)) + 
+  geom_histogram() +
+  facet_wrap(~Experiment)
+
+ggplot(d, aes(x=Age)) + 
+  geom_density() +
+  geom_vline(aes(xintercept=mean(Age)),
+            color="blue", linetype="dashed", linewidth=1) +
+  facet_wrap(~Experiment)
+```
+
+
+# Sex
+```{r}
+table(d$Sex)
+
+table(d$Experiment,d$Sex)
+```

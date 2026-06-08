@@ -18,7 +18,7 @@ This directory also has a folder "exploratory_cat_and_sim" which compares the Si
 
 ## OSF
 
-The OSF project can be found [here](https://osf.io/3rt46/overview?view_only=25dbb901d1744e318b66a5b16239ed24).
+The OSF project can be found [here](https://osf.io/3rt46/overview?view_only=25dbb901d1744e318b66a5b16239ed24). Please note that the preregistrations are NOT anonymized!
 
 
 ## Sister Repo

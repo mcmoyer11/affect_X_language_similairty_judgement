@@ -57,7 +57,7 @@ summary(pilot_model)
 
 # Extend the number of subjects
 model_ext <- extend(pilot_model, along = "ID.Ibex", n = 40)  # try 40 subjects, or as needed
-
+summary(model_ext)
 # Power simulation (e.g. for detecting effect of FeatureMatch)
 result <- powerSim(model_ext, nsim = 200)
 summary(result)

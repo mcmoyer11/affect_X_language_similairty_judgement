@@ -37,6 +37,7 @@ source("../../../helpers.R")
 
 d <- read_csv("../../02_n2/data/processed.csv")
 names(d)
+length(unique(d$ID.Ibex))
 ```
 
 # Anova
